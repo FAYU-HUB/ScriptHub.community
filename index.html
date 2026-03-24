@@ -191,15 +191,26 @@
             cursor: pointer;
             font-weight: bold;
         }
+
+        /* Search Bar Specific Style */
+        #dynamicSearchInput {
+            width: 100%;
+            padding: 15px;
+            background: #111;
+            border: 1px solid #8a2be2;
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
     </style>
 </head>
 <body>
 
     <nav class="navbar">
         <div class="tabs">
-            <button class="tab-btn active">Script Hub</button>
-            <button class="tab-btn">Search</button>
-            <button class="tab-btn">Executor</button>
+            <button class="tab-btn active" id="tab-home">Script Hub</button>
+            <button class="tab-btn" id="tab-search">Search</button>
+            <button class="tab-btn" id="tab-executor">Executor</button>
         </div>
         <button class="upload-btn" onclick="openModal()">Upload Script</button>
     </nav>
@@ -223,12 +234,19 @@
 
     <script>
         const scriptListElement = document.getElementById('script-list');
+        const container = document.querySelector('.container');
+        const tabHome = document.getElementById('tab-home');
+        const tabSearch = document.getElementById('tab-search');
 
-        // Load data from LocalStorage on startup
         window.onload = () => {
-            const savedScripts = JSON.parse(localStorage.getItem('userScripts')) || [];
-            savedScripts.forEach(s => addScriptToUI(s.title, s.content));
+            loadScripts();
         };
+
+        function loadScripts() {
+            scriptListElement.innerHTML = '';
+            const savedScripts = JSON.parse(localStorage.getItem('userScripts')) || [];
+            savedScripts.forEach(s => addScriptToUI(s.title, s.content, scriptListElement));
+        }
 
         function openModal() {
             document.getElementById('uploadModal').style.display = 'block';
@@ -253,22 +271,22 @@
             savedScripts.push({ title, content });
             localStorage.setItem('userScripts', JSON.stringify(savedScripts));
 
-            addScriptToUI(title, content);
+            if (tabHome.classList.contains('active')) {
+                addScriptToUI(title, content, scriptListElement);
+            }
             closeModal();
         }
 
-        function addScriptToUI(title, content) {
+        function addScriptToUI(title, content, targetElement) {
             const card = document.createElement('div');
             card.className = 'script-card';
-            
-            // Basic sanitization for the copy function
             const cleanContent = content.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
             card.innerHTML = `
                 <h4>${title}</h4>
                 <button class="copy-btn" onclick="copyToClipboard('${cleanContent}')">Copy Script</button>
             `;
-            scriptListElement.appendChild(card);
+            targetElement.appendChild(card);
         }
 
         function copyToClipboard(text) {
@@ -278,16 +296,46 @@
             tempInput.select();
             document.execCommand('copy');
             document.body.removeChild(tempInput);
-            
             alert("Script copied to clipboard!");
         }
 
-        // Close modal when clicking outside of it
+        // Tab Switching Logic
+        tabSearch.addEventListener('click', () => {
+            tabHome.classList.remove('active');
+            tabSearch.classList.add('active');
+
+            container.innerHTML = `
+                <input type="text" id="dynamicSearchInput" placeholder="Search scripts by name...">
+                <div id="search-results" class="script-grid"></div>
+            `;
+
+            const searchInput = document.getElementById('dynamicSearchInput');
+            const resultsGrid = document.getElementById('search-results');
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const savedScripts = JSON.parse(localStorage.getItem('userScripts')) || [];
+                resultsGrid.innerHTML = '';
+                
+                const filtered = savedScripts.filter(s => s.title.toLowerCase().includes(query));
+                filtered.forEach(s => addScriptToUI(s.title, s.content, resultsGrid));
+            });
+        });
+
+        tabHome.addEventListener('click', () => {
+            tabSearch.classList.remove('active');
+            tabHome.classList.add('active');
+            
+            container.innerHTML = `<div id="script-list" class="script-grid"></div>`;
+            // Re-reference the new element after clearing innerHTML
+            const newList = document.getElementById('script-list');
+            const savedScripts = JSON.parse(localStorage.getItem('userScripts')) || [];
+            savedScripts.forEach(s => addScriptToUI(s.title, s.content, newList));
+        });
+
         window.onclick = function(event) {
             const modal = document.getElementById('uploadModal');
-            if (event.target == modal) {
-                closeModal();
-            }
+            if (event.target == modal) closeModal();
         }
     </script>
 </body>
